@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mlkit"
+version = "0.1.0"
+description = "Shared evaluation, splits and MLflow helpers for the ml-pipelines projects"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy==2.5.3",
+    "pandas==3.0.6",
+    "pyarrow==25.0.1",
+    "s3fs==2026.9.0",
+    "scikit-learn==1.9.1",
+    "mlflow==3.16.0",
+]
+
+[tool.setuptools]
+packages = ["mlkit"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

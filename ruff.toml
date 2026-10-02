@@ -1,0 +1,9 @@
+line-length = 120
+target-version = "py312"
+
+[lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[lint.isort]
+# mlkit is our own package; the pipeline scripts import each other as top-level modules
+known-first-party = ["mlkit", "dataset", "features", "fetch", "train", "start", "select_winner", "register"]

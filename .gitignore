@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# local runs
+data/
+mlflow.db
+mlruns/
+mlartifacts/
+
+# never commit secrets or certificates
+.env
+*.pem
+*secret*.yaml
