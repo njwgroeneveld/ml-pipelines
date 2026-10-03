@@ -16,5 +16,5 @@ mlartifacts/
 *.pem
 *secret*.yaml
 
-# account details per installation (pooler host, R2 endpoint)
+# account details per installation (pooler host, storage endpoint, region)
 *.local.yaml
