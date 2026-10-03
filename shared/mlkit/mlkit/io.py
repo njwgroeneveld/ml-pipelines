@@ -1,4 +1,4 @@
-"""Read and write Parquet on a local path or on S3-compatible storage (Cloudflare R2).
+"""Read and write Parquet on a local path or on S3-compatible storage (Supabase Storage).
 
 A path starting with s3:// goes to the endpoint in $S3_ENDPOINT; anything else is a
 local file. The same code therefore runs on a laptop and on the cluster.

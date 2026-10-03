@@ -1,11 +1,12 @@
 #!/bin/bash
-# Look into the R2 bucket from a temporary pod that uses the r2-credentials secret of namespace ml.
-#     bash check-r2.sh            list everything under s3://ml-data/
-#     bash check-r2.sh <prefix>   list only under s3://ml-data/<prefix>
-#     bash check-r2.sh write      write, list and delete s3://ml-data/_check/hello.txt
+# Look into the ml-data bucket (Supabase Storage, S3 API) from a temporary pod that uses the
+# s3-credentials secret of namespace ml.
+#     bash check-storage.sh            list everything under s3://ml-data/
+#     bash check-storage.sh <prefix>   list only under s3://ml-data/<prefix>
+#     bash check-storage.sh write      write, list and delete s3://ml-data/_check/hello.txt
 set -euo pipefail
 arg="${1:-}"
-pod=check-r2
+pod=check-storage
 
 if [ "$arg" = write ]; then
   mode=write
@@ -29,17 +30,19 @@ spec:
     args:
     - |
       set -e
-      r2="--endpoint-url \$S3_ENDPOINT --region auto"
+      # Supabase Storage needs path-style addressing
+      aws configure set default.s3.addressing_style path
+      s3="--endpoint-url \$S3_ENDPOINT --region \$AWS_DEFAULT_REGION"
       if [ "$mode" = write ]; then
         echo hello > /tmp/hello.txt
-        aws s3 cp /tmp/hello.txt s3://ml-data/_check/hello.txt \$r2
-        aws s3 ls s3://ml-data/_check/ \$r2
-        aws s3 rm s3://ml-data/_check/hello.txt \$r2
+        aws s3 cp /tmp/hello.txt s3://ml-data/_check/hello.txt \$s3
+        aws s3 ls s3://ml-data/_check/ \$s3
+        aws s3 rm s3://ml-data/_check/hello.txt \$s3
       else
-        aws s3 ls s3://ml-data/$prefix --recursive \$r2
+        aws s3 ls s3://ml-data/$prefix --recursive --summarize \$s3
       fi
     envFrom:
-    - secretRef: {name: r2-credentials}
+    - secretRef: {name: s3-credentials}
 YAML
 
 phase=""

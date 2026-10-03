@@ -1,8 +1,12 @@
 # Platform
 
 Shared by every pipeline in this repo: Argo Workflows runs the steps, MLflow tracks runs and
-models. Both are installed with Helm on the home cluster; state lives outside it (Supabase for
-MLflow metadata, Cloudflare R2 for data and models), so the cluster holds no volumes.
+models. Both are installed with Helm on the home cluster; state lives outside it, in one Supabase
+project: Postgres (schema `mlflow`) for MLflow metadata and Storage (bucket `ml-data`, through its
+S3 API) for data and models. The cluster holds no volumes.
+
+Supabase Storage has no lifecycle rules: old files under `*/runs/` are removed by the pipelines
+themselves. Keep an eye on the 1 GB of the free plan, since the project also serves live trading.
 
 | Component | Chart | Namespace | Reach it |
 |---|---|---|---|
@@ -18,7 +22,7 @@ Run on a machine with `kubectl` and `helm` for the cluster, from this directory:
 kubectl apply -f namespaces.yaml
 bash create-secrets.sh                       # asks for every value
 bash check-supabase.sh <pooler-host>         # one login; must succeed before MLflow
-bash check-r2.sh write
+bash check-storage.sh write
 helm repo add argo https://argoproj.github.io/argo-helm
 helm repo add community-charts https://community-charts.github.io/helm-charts
 helm repo update

@@ -1,5 +1,7 @@
 # MLflow tracking server (chart community-charts/mlflow 1.11.7, MLflow 3.16.0)
-# Host names and the R2 endpoint are not in git: they go in values.local.yaml (see platform/README.md).
+# Metadata: Supabase Postgres, schema mlflow. Models: Supabase Storage bucket ml-data (S3 API).
+# Host names, the storage endpoint and the region are not in git: they go in values.local.yaml
+# (see platform/README.md).
 image:
   repository: burakince/mlflow
   tag: "3.16.0"
@@ -17,13 +19,13 @@ backendStore:
     usernameKey: username
     passwordKey: password
 artifactRoot:
-  proxiedArtifactStorage: true     # clients send models through the server; only the server holds R2 keys
+  proxiedArtifactStorage: true     # clients send models through the server; only the server holds storage keys
   s3:
     enabled: true
     bucket: ml-data
     path: mlflow
     existingSecret:
-      name: mlflow-r2
+      name: mlflow-s3
       keyOfAccessKeyId: AWS_ACCESS_KEY_ID
       keyOfSecretAccessKey: AWS_SECRET_ACCESS_KEY
 extraEnvVars:
