@@ -1,0 +1,13 @@
+# Snapshot definition. Fetched once, never changed: a new period means a new file.
+name: 2026-10
+interval: 1h
+horizon: 4                       # label: is the close 4 candles later higher?
+weekdays_only: true
+sources:
+  nq:  {source: yfinance,    symbol: "NQ=F"}
+  xyz: {source: hyperliquid, symbol: "xyz:XYZ100"}
+train_on: nq
+periods:
+  train: {end: 2026-05-31}
+  val:   {from: 2026-06-01, to: 2026-07-31}
+  test:  {from: 2026-08-01, to: 2026-09-30}
