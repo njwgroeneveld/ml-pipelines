@@ -1,0 +1,13 @@
+# Namespaces of the ML platform. Argo and MLflow are installed with Helm into the first two;
+# pipeline workflows and their pods run in "ml".
+apiVersion: v1
+kind: Namespace
+metadata: {name: argo}
+---
+apiVersion: v1
+kind: Namespace
+metadata: {name: mlflow}
+---
+apiVersion: v1
+kind: Namespace
+metadata: {name: ml}

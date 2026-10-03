@@ -1,0 +1,71 @@
+# MLflow tracking server (chart community-charts/mlflow 1.11.7, MLflow 3.16.0)
+# Host names and the R2 endpoint are not in git: they go in values.local.yaml (see platform/README.md).
+image:
+  repository: burakince/mlflow
+  tag: "3.16.0"
+backendStore:
+  databaseMigration: true          # init container runs `mlflow db upgrade` before the server starts
+  databaseConnectionCheck: true    # init container waits until host:port answers (no login attempt)
+  postgres:
+    enabled: true
+    port: 5432
+    database: postgres
+    user: from-secret              # overridden by existingDatabaseSecret
+    password: from-secret
+  existingDatabaseSecret:
+    name: mlflow-db
+    usernameKey: username
+    passwordKey: password
+artifactRoot:
+  proxiedArtifactStorage: true     # clients send models through the server; only the server holds R2 keys
+  s3:
+    enabled: true
+    bucket: ml-data
+    path: mlflow
+    existingSecret:
+      name: mlflow-r2
+      keyOfAccessKeyId: AWS_ACCESS_KEY_ID
+      keyOfSecretAccessKey: AWS_SECRET_ACCESS_KEY
+extraEnvVars:
+  PGSSLMODE: require
+  # Few connections: MLflow shares the Supabase pooler with live trading.
+  MLFLOW_SQLALCHEMYSTORE_POOL_SIZE: "2"
+  MLFLOW_SQLALCHEMYSTORE_MAX_OVERFLOW: "0"
+service:
+  type: ClusterIP
+  port: 5000
+# MLflow 3 rejects requests whose Host header is not listed here.
+serverAllowedHosts:
+  - "mlflow.mlflow.svc.cluster.local:5000"
+  - "mlflow.mlflow.svc:5000"
+  - "mlflow.mlflow:5000"
+  - "<node-ip>:30500"
+  - "<tailscale-ip-pi5>:30500"
+  - "<tailscale-ip-niels-desktop>:30500"
+  - "localhost:*"
+nodeSelector:
+  kubernetes.io/hostname: pi5      # 8 GB node; niels-desktop has 4 GB and flaky wifi
+resources:
+  requests: {cpu: 100m, memory: 512Mi}
+  limits: {memory: 1Gi}
+serviceMonitor:
+  enabled: true
+  labels:
+    release: monitoring
+# The chart cannot pin a nodePort, so the UI gets its own Service on a fixed port.
+extraDeploy:
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: mlflow-ui
+      namespace: mlflow
+    spec:
+      type: NodePort
+      selector:
+        app.kubernetes.io/name: mlflow
+        app.kubernetes.io/instance: mlflow
+      ports:
+        - name: http
+          port: 5000
+          targetPort: 5000
+          nodePort: 30500

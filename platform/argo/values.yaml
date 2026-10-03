@@ -1,0 +1,33 @@
+# Argo Workflows (chart argo/argo-workflows 2.0.9, Argo v4.1.4)
+# Install: see platform/README.md
+controller:
+  # only manage workflows in the namespace the pipelines run in
+  workflowNamespaces: [ml]
+  metricsConfig:
+    enabled: true
+  serviceMonitor:
+    enabled: true
+    additionalLabels:
+      release: monitoring          # the cluster's Prometheus only selects this label
+  resources:
+    requests: {cpu: 50m, memory: 64Mi}
+    limits: {memory: 256Mi}
+  workflowDefaults:
+    spec:
+      serviceAccountName: ml-workflow
+      podGC:
+        strategy: OnPodSuccess     # keep failed pods for their logs
+      ttlStrategy:
+        secondsAfterCompletion: 604800   # remove finished workflows after 7 days
+server:
+  authModes: [server]              # no login: reachable only through kubectl port-forward
+  serviceType: ClusterIP
+  resources:
+    requests: {cpu: 50m, memory: 64Mi}
+    limits: {memory: 256Mi}
+workflow:
+  serviceAccount:
+    create: true
+    name: ml-workflow              # pipeline pods run as this account in namespace ml
+  rbac:
+    create: true                   # Role: create/patch workflowtaskresults, nothing more

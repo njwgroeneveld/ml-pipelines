@@ -1,0 +1,7 @@
+# Copy to values.local.yaml (git-ignored) and fill in. These are not secrets, but they
+# identify your accounts, so they stay out of a public repo.
+backendStore:
+  postgres:
+    host: aws-0-<REGION>.pooler.supabase.com     # Supabase: Connect -> Session pooler
+extraEnvVars:
+  MLFLOW_S3_ENDPOINT_URL: https://<ACCOUNT_ID>.r2.cloudflarestorage.com

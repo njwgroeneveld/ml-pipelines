@@ -1,0 +1,31 @@
+# Checks the retry rule every pipeline step will use: retry on any failure, except exit code 2
+# (a failed data check, which a retry cannot fix).
+#     kubectl create -f smoke/retry-test.yaml
+# Expected: step "transient" runs 3 times (1 + 2 retries), step "data-check" runs once.
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: retry-test-
+  namespace: ml
+spec:
+  entrypoint: main
+  templates:
+    - name: main
+      steps:
+        - - name: transient
+            template: fail
+            arguments: {parameters: [{name: code, value: "1"}]}
+          - name: data-check
+            template: fail
+            arguments: {parameters: [{name: code, value: "2"}]}
+    - name: fail
+      inputs:
+        parameters: [{name: code}]
+      retryStrategy:
+        limit: "2"
+        retryPolicy: Always
+        expression: "asInt(lastRetry.exitCode) != 2"
+        backoff: {duration: "5s", factor: "2"}
+      container:
+        image: busybox:1.38.0
+        command: [sh, -c, "echo exit {{inputs.parameters.code}}; exit {{inputs.parameters.code}}"]
