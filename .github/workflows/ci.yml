@@ -1,7 +1,9 @@
 name: ci
 on:
   push:
+    branches: ["**"]   # not on tags: a nasdaq-v* tag runs these tests through build-nasdaq.yml
   pull_request:
+  workflow_call:
 jobs:
   test:
     runs-on: ubuntu-latest
