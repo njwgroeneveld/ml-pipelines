@@ -33,6 +33,9 @@ extraEnvVars:
   # Few connections: MLflow shares the Supabase pooler with live trading.
   MLFLOW_SQLALCHEMYSTORE_POOL_SIZE: "2"
   MLFLOW_SQLALCHEMYSTORE_MAX_OVERFLOW: "0"
+  # MLflow 3 starts a job runner plus 8 huey consumers for its GenAI background jobs, ~220 MB each
+  # (~2 GB in total, measured on pi5). This project does not use them.
+  MLFLOW_SERVER_ENABLE_JOB_EXECUTION: "false"
 service:
   type: ClusterIP
   port: 5000
@@ -47,6 +50,9 @@ serverAllowedHosts:
   - "localhost:*"
 nodeSelector:
   kubernetes.io/hostname: pi5      # 8 GB node; niels-desktop has 4 GB and flaky wifi
+# Each uvicorn worker loads all of MLflow (~220 MB); two are plenty for a home cluster.
+extraArgs:
+  workers: "2"
 resources:
   requests: {cpu: 100m, memory: 512Mi}
   limits: {memory: 1Gi}
@@ -54,6 +60,15 @@ serviceMonitor:
   enabled: true
   labels:
     release: monitoring
+# With the ServiceMonitor on, the chart starts MLflow with --expose-prometheus=/mlflow/metrics.
+# The container's root filesystem is read-only, so that directory needs its own writable volume,
+# or the server crashes on start (OSError: Read-only file system: '/mlflow/metrics').
+extraVolumes:
+  - name: prometheus-metrics
+    emptyDir: {}
+extraVolumeMounts:
+  - name: prometheus-metrics
+    mountPath: /mlflow/metrics
 # The chart cannot pin a nodePort, so the UI gets its own Service on a fixed port.
 extraDeploy:
   - apiVersion: v1
