@@ -39,14 +39,13 @@ extraEnvVars:
 service:
   type: ClusterIP
   port: 5000
-# MLflow 3 rejects requests whose Host header is not listed here.
+# MLflow 3 rejects requests whose Host header is not listed here. Only the in-cluster names live in
+# git; values.local.yaml adds the node and VPN addresses. Helm replaces lists instead of merging
+# them, so values.local.yaml repeats this whole list.
 serverAllowedHosts:
   - "mlflow.mlflow.svc.cluster.local:5000"
   - "mlflow.mlflow.svc:5000"
   - "mlflow.mlflow:5000"
-  - "<node-ip>:30500"
-  - "<tailscale-ip-pi5>:30500"
-  - "<tailscale-ip-niels-desktop>:30500"
   - "localhost:*"
 nodeSelector:
   kubernetes.io/hostname: pi5      # 8 GB node; niels-desktop has 4 GB and flaky wifi

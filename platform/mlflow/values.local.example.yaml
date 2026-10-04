@@ -6,3 +6,11 @@ backendStore:
 extraEnvVars:
   MLFLOW_S3_ENDPOINT_URL: https://<PROJECT_REF>.storage.supabase.co/storage/v1/s3
   AWS_DEFAULT_REGION: <REGION>                   # e.g. eu-central-1
+# The UI is reached on <node-ip>:30500. Helm replaces lists, so repeat the in-cluster names.
+serverAllowedHosts:
+  - "mlflow.mlflow.svc.cluster.local:5000"
+  - "mlflow.mlflow.svc:5000"
+  - "mlflow.mlflow:5000"
+  - "<node-ip>:30500"              # e.g. the LAN address of the node running MLflow
+  - "<vpn-ip>:30500"               # optional: one line per Tailscale address
+  - "localhost:*"
