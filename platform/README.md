@@ -5,8 +5,8 @@ models. Both are installed with Helm on the home cluster; state lives outside it
 project: Postgres (schema `mlflow`) for MLflow metadata and Storage (bucket `ml-data`, through its
 S3 API) for data and models. The cluster holds no volumes.
 
-Supabase Storage has no lifecycle rules: old files under `*/runs/` are removed by the pipelines
-themselves. Keep an eye on the 1 GB of the free plan, since the project also serves live trading.
+Supabase Storage has no lifecycle rules. Pipelines store only fetched snapshots and models
+(features are recomputed by every step), so the bucket grows by roughly one model per variant per run. Keep an eye on the 1 GB of the free plan, since the project also serves live trading.
 
 | Component | Chart | Namespace | Reach it |
 |---|---|---|---|
