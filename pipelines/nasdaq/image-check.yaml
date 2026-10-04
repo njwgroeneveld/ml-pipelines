@@ -1,0 +1,37 @@
+# Runs the pipeline image once on each node and imports every step. Catches a missing package,
+# a private ghcr package (ImagePullBackOff) and a CPU the image cannot run on (the Pi 4 node is
+# ARMv8.0). Also pulls the image onto both nodes before the first real run.
+#     argo submit -n ml image-check.yaml -p image_tag=<version> --wait
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: nasdaq-image-check-
+  namespace: ml
+spec:
+  entrypoint: main
+  arguments:
+    parameters:
+      - name: image_tag
+  templates:
+    - name: main
+      steps:
+        - - name: pi5
+            template: check
+            arguments: {parameters: [{name: node, value: pi5}]}
+          - name: niels-desktop
+            template: check
+            arguments: {parameters: [{name: node, value: niels-desktop}]}
+    - name: check
+      inputs:
+        parameters:
+          - name: node
+      nodeSelector:
+        kubernetes.io/hostname: "{{inputs.parameters.node}}"
+      container:
+        image: ghcr.io/njwgroeneveld/ml-pipelines-nasdaq:{{workflow.parameters.image_tag}}
+        command: [python, -c]
+        args:
+          - |
+            import os, platform
+            import fetch, register, select_winner, start, train, yfinance
+            print("ok", platform.machine(), "uid", os.getuid(), "image", os.environ["IMAGE_TAG"], "git", os.environ["GIT_SHA"])
