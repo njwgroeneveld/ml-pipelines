@@ -4,12 +4,14 @@ import os
 import mlflow
 import mlflow.sklearn
 from mlflow import MlflowClient
+from mlflow.exceptions import MlflowException
 from mlflow.models import infer_signature
 
 from . import metrics
 from .models import SKOPS_TRUSTED_TYPES
 
 CANDIDATE_ALIAS = "candidate"
+CHAMPION_ALIAS = "champion"
 
 
 def experiment_name(project: str, kind: str) -> str:
@@ -57,3 +59,22 @@ def register_candidate(model_name: str, model_uri: str, tags: dict[str, str]) ->
     version = mlflow.register_model(model_uri, model_name, tags=tags).version
     MlflowClient().set_registered_model_alias(model_name, CANDIDATE_ALIAS, version)
     return version
+
+
+def promote_champion(model_name: str, version: str | None = None) -> tuple[str, str | None]:
+    """Point the 'champion' alias at a version, by default the current candidate.
+
+    Returns (new, previous). Rolling back is promoting the previous version again.
+    An unknown version raises MlflowException and leaves the alias where it was.
+    """
+    client = MlflowClient()
+    if version is None:
+        version = client.get_model_version_by_alias(model_name, CANDIDATE_ALIAS).version
+    else:
+        version = client.get_model_version(model_name, version).version
+    try:
+        previous = client.get_model_version_by_alias(model_name, CHAMPION_ALIAS).version
+    except MlflowException:
+        previous = None
+    client.set_registered_model_alias(model_name, CHAMPION_ALIAS, version)
+    return version, previous

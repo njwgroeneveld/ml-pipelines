@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from mlflow import MlflowClient
+from mlflow.exceptions import MlflowException
 
 from mlkit import tracking
 from mlkit.models import make_model
@@ -63,3 +64,37 @@ def test_register_candidate_sets_alias(local_mlflow):
     mv = MlflowClient().get_model_version_by_alias("demo-direction", "candidate")
     assert mv.version == version
     assert mv.tags["feature_set"] == "base"
+
+
+def _register_versions(name: str, n: int) -> list[str]:
+    """n versions of one model; each new one becomes @candidate, like a pipeline run."""
+    model, X = _fitted_model()
+    versions = []
+    for _ in range(n):
+        with mlflow.start_run():
+            versions.append(tracking.register_candidate(name, tracking.log_model(model, X), {}))
+    return versions
+
+
+def test_promote_defaults_to_the_candidate(local_mlflow):
+    _, latest = _register_versions("demo-direction", 2)
+
+    assert tracking.promote_champion("demo-direction") == (latest, None)
+    assert MlflowClient().get_model_version_by_alias("demo-direction", "champion").version == latest
+
+
+def test_promote_reports_the_previous_champion_for_a_rollback(local_mlflow):
+    first, latest = _register_versions("demo-direction", 2)
+    tracking.promote_champion("demo-direction")
+
+    assert tracking.promote_champion("demo-direction", first) == (first, latest)
+    assert MlflowClient().get_model_version_by_alias("demo-direction", "champion").version == first
+
+
+def test_promote_refuses_an_unknown_version(local_mlflow):
+    _register_versions("demo-direction", 1)
+
+    with pytest.raises(MlflowException):
+        tracking.promote_champion("demo-direction", "99")
+    with pytest.raises(MlflowException):
+        MlflowClient().get_model_version_by_alias("demo-direction", "champion")
