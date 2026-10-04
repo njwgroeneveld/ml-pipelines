@@ -12,12 +12,12 @@ from mlflow import MlflowClient
 
 from dataset import Dataset, load_dataset
 from features import FEATURE_SETS, features_by_source
-from mlkit.errors import run_main
+from mlkit.errors import DataCheckError, run_main
 from train import evaluate, paired_period
 
 
-class AlreadyTested(Exception):
-    pass
+class AlreadyTested(DataCheckError):
+    """Not a data problem, but like one a retry cannot fix it: exit code 2, no retry."""
 
 
 def select_winner(parent_run_id: str, ds: Dataset):
@@ -28,7 +28,8 @@ def select_winner(parent_run_id: str, ds: Dataset):
     metric = f"val_{ds.train_on}_auc"
     children = client.search_runs(
         [parent.info.experiment_id],
-        filter_string=f"tags.mlflow.parentRunId = '{parent_run_id}'",
+        # A retried train step leaves its failed first attempt behind; only finished runs count.
+        filter_string=f"tags.mlflow.parentRunId = '{parent_run_id}' and attributes.status = 'FINISHED'",
         order_by=[f"metrics.{metric} DESC"],
     )
     if not children:
@@ -46,9 +47,10 @@ def evaluate_winner(feats: dict[str, pd.DataFrame], ds: Dataset, parent_run_id: 
     client = MlflowClient()
     for name, value in values.items():
         client.log_metric(winner.info.run_id, name, value)
-    client.set_tag(parent_run_id, "test_evaluated", "true")
     client.set_tag(parent_run_id, "winner_run_id", winner.info.run_id)
     client.set_tag(parent_run_id, "winner_feature_set", winner.data.tags["feature_set"])
+    # Last, so that a crash before this line leaves the experiment open for Argo's retry.
+    client.set_tag(parent_run_id, "test_evaluated", "true")
     return winner.info.run_id
 
 
