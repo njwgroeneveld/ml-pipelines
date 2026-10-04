@@ -36,6 +36,9 @@ extraEnvVars:
   # MLflow 3 starts a job runner plus 8 huey consumers for its GenAI background jobs, ~220 MB each
   # (~2 GB in total, measured on pi5). This project does not use them.
   MLFLOW_SERVER_ENABLE_JOB_EXECUTION: "false"
+  # MLflow 3 also refuses POSTs from any browser origin but localhost, so the UI shows
+  # INTERNAL_ERROR when opened on a node address. MLFLOW_SERVER_CORS_ALLOWED_ORIGINS lists the
+  # addresses the UI is opened on; it holds node IPs, so it lives in values.local.yaml.
 service:
   type: ClusterIP
   port: 5000

@@ -6,6 +6,8 @@ backendStore:
 extraEnvVars:
   MLFLOW_S3_ENDPOINT_URL: https://<PROJECT_REF>.storage.supabase.co/storage/v1/s3
   AWS_DEFAULT_REGION: <REGION>                   # e.g. eu-central-1
+  # every address the UI is opened on, comma-separated
+  MLFLOW_SERVER_CORS_ALLOWED_ORIGINS: "http://<node-ip>:30500,http://<vpn-ip>:30500"
 # The UI is reached on <node-ip>:30500. Helm replaces lists, so repeat the in-cluster names.
 serverAllowedHosts:
   - "mlflow.mlflow.svc.cluster.local:5000"

@@ -5,7 +5,7 @@
 | Date | 2026-10-04 |
 | Duration | 21 minutes (11:36–11:57 CEST), five Helm revisions |
 | Impact | None outside this project: MLflow had no users yet. The shared Supabase project (which also serves live trading) saw no failed logins. |
-| Status | Resolved. 543 MB in use, no restarts since. |
+| Status | Resolved. 543 MB in use, no restarts since; a fourth problem (the UI) found and fixed the same afternoon. |
 
 ## Summary
 
@@ -26,6 +26,8 @@ switched off and two web workers, the server runs in 543 MB under a 1 GiB limit.
 | 11:55 | 4 | limit 3 GiB, only to measure | runs; ~1.9 GB in use (cgroup `memory.peak`, RSS per process): most of it a job runner and 8 `huey_consumer` processes |
 | 11:57 | 5 | `MLFLOW_SERVER_ENABLE_JOB_EXECUTION=false`, limit back to 1 GiB | 543 MB, 0 restarts |
 | 12:24–12:25 | 6, 7 | release drill: upgrade, then `helm rollback` to 5 | runs and registered models intact: state lives in Postgres and object storage, not in the pod |
+| 17:25 | – | first time the UI is used in a browser on the node address | experiment pages show `INTERNAL_ERROR`: every POST is refused with 403, `Blocked cross-origin request` |
+| 17:28 | 9 | `MLFLOW_SERVER_CORS_ALLOWED_ORIGINS` set to the addresses the UI is opened on | runs load |
 
 ## Root causes
 
@@ -36,6 +38,11 @@ switched off and two web workers, the server runs in 543 MB under a 1 GiB limit.
    eight `huey` consumers for GenAI background jobs, each loading all of MLflow. The switch is
    `MLFLOW_SERVER_ENABLE_JOB_EXECUTION`, found in `mlflow/environment_variables.py`; the chart does
    not mention it.
+
+3. **Cross-origin protection in MLflow 3.** Since 3.5 the server refuses state-changing requests
+   (the UI searches runs with POST) from any origin other than localhost, unless the origin is listed
+   in `MLFLOW_SERVER_CORS_ALLOWED_ORIGINS`. Allowing the host names (`serverAllowedHosts`) is a
+   separate setting and is not enough.
 
 Contributing: the memory limit was sized on MLflow 2 experience, and raising it (revision 3) treated
 the symptom instead of finding the cause.
@@ -60,6 +67,8 @@ so it saw none of the crashes.
 - Helm reported revision 1 as "Install complete" while the main container kept restarting: a
   successful install said nothing about whether the server stayed up.
 - Revision 3 raised the limit before anyone looked at what used the memory.
+- "Up" was checked with `/health` and with the Python client, never by opening the UI in a browser,
+  so the cross-origin block went unnoticed for five hours.
 
 ## Action items
 
@@ -67,5 +76,7 @@ so it saw none of the crashes.
 |---|---|
 | `emptyDir` on `/mlflow/metrics`, job execution off, `--workers=2`, each with a comment in the values | done |
 | Release drill: upgrade and `helm rollback` without losing state | done |
+| `MLFLOW_SERVER_CORS_ALLOWED_ORIGINS` for the UI addresses (in the local values, not in git) | done |
+| Check a new or upgraded server the way people use it: open the UI and load an experiment, not only `/health` | open |
 | Watch `containerStatuses` (restart count, last termination reason), not only init containers, in install scripts | open |
 | Alert on container restarts in namespaces `mlflow` and `argo` (`kube_pod_container_status_restarts_total`) | open, with the planned Grafana dashboard |
