@@ -1,0 +1,90 @@
+# The Nasdaq experiment as an Argo WorkflowTemplate in namespace ml:
+#   start -> fetch -> train-validate (one pod per feature set) -> select-winner -> register
+# Every step runs the same image and the same container template; only the script differs.
+#     kubectl apply -f workflow-template.yaml
+#     argo submit -n ml --from workflowtemplate/nasdaq-experiment -p image_tag=<version>
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: nasdaq-experiment
+  namespace: ml
+spec:
+  entrypoint: experiment
+  activeDeadlineSeconds: 3600        # stop a run that hangs after one hour
+  parallelism: 2                     # at most two pods at once; the Pi 4 node has ~2 GB free
+  arguments:
+    parameters:
+      - name: image_tag              # required: the image version, e.g. 0.2.0
+      - name: dataset
+        value: "2026-10"
+      - name: feature_sets           # JSON list; one train-validate pod per entry
+        value: '["base", "base+ema10"]'
+  templates:
+    - name: experiment
+      steps:
+        - - name: start
+            template: run
+            arguments:
+              parameters:
+                - {name: script, value: start.py}
+        - - name: fetch
+            template: run
+            arguments:
+              parameters:
+                - {name: script, value: fetch.py}
+        - - name: train-validate
+            template: run
+            withParam: "{{workflow.parameters.feature_sets}}"
+            arguments:
+              parameters:
+                - {name: script, value: train.py}
+                - {name: feature_set, value: "{{item}}"}
+                - {name: parent_run_id, value: "{{steps.start.outputs.parameters.parent_run_id}}"}
+        - - name: select-winner
+            template: run
+            arguments:
+              parameters:
+                - {name: script, value: select_winner.py}
+                - {name: parent_run_id, value: "{{steps.start.outputs.parameters.parent_run_id}}"}
+        - - name: register
+            template: run
+            arguments:
+              parameters:
+                - {name: script, value: register.py}
+                - {name: parent_run_id, value: "{{steps.start.outputs.parameters.parent_run_id}}"}
+
+    - name: run
+      inputs:
+        parameters:
+          - name: script
+          - name: feature_set
+            value: ""
+          - name: parent_run_id
+            value: ""
+      outputs:
+        parameters:
+          - name: parent_run_id      # only start.py writes this file; other steps output ""
+            valueFrom:
+              path: /tmp/parent_run_id
+              default: ""
+      retryStrategy:
+        limit: "2"
+        retryPolicy: Always
+        expression: "asInt(lastRetry.exitCode) != 2"   # exit 2 = data check failed: never retry
+        backoff: {duration: "5s", factor: "2"}
+      container:
+        image: "ghcr.io/njwgroeneveld/ml-pipelines-nasdaq:{{workflow.parameters.image_tag}}"
+        command: [python, "{{inputs.parameters.script}}"]
+        workingDir: /app
+        env:
+          - {name: DATASET_FILE, value: "/app/datasets/{{workflow.parameters.dataset}}.yaml"}
+          - {name: DATA_ROOT, value: "s3://ml-data/nasdaq/datasets"}
+          - {name: MLFLOW_TRACKING_URI, value: "http://mlflow.mlflow.svc.cluster.local:5000"}
+          - {name: OUTPUT_FILE, value: /tmp/parent_run_id}
+          - {name: FEATURE_SET, value: "{{inputs.parameters.feature_set}}"}
+          - {name: PARENT_RUN_ID, value: "{{inputs.parameters.parent_run_id}}"}
+        envFrom:
+          - secretRef: {name: s3-credentials}     # S3 keys, endpoint and region for mlkit.io
+        resources:
+          requests: {cpu: 250m, memory: 512Mi}
+          limits: {memory: 1Gi}                 # peak measured on the Pi 4: 356 MB
