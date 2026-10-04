@@ -1,7 +1,9 @@
 import numpy as np
 import pandas as pd
 
-from features import FEATURE_SETS, FEATURES, build_features
+from dataset import raw_path
+from features import FEATURE_SETS, FEATURES, build_features, features_by_source
+from mlkit import io
 
 
 def test_every_feature_set_uses_known_features():
@@ -59,3 +61,15 @@ def test_label_matches_close_horizon_rows_later(raw_by_source):
     row = feats.iloc[100]
     later = raw.index.get_loc(row["t"]) + 4
     assert row["label"] == float(raw.iloc[later] > row["c"])
+
+
+def test_features_by_source_reads_the_raw_snapshot(tmp_path, small_dataset, raw_by_source):
+    root = tmp_path.as_posix()
+    for key, raw in raw_by_source.items():
+        io.write_parquet(raw, raw_path(root, small_dataset, key))
+
+    feats = features_by_source(small_dataset, root)
+
+    assert set(feats) == {"nq", "xyz"}
+    expected = build_features(raw_by_source["nq"], small_dataset.horizon, small_dataset.weekdays_only)
+    pd.testing.assert_frame_equal(feats["nq"], expected)

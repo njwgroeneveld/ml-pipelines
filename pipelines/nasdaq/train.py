@@ -7,9 +7,8 @@ import os
 import mlflow
 import pandas as pd
 
-from dataset import PROJECT, Dataset, feat_path, load_dataset
-from features import FEATURE_SETS
-from mlkit import io
+from dataset import PROJECT, Dataset, load_dataset
+from features import FEATURE_SETS, features_by_source
 from mlkit.errors import DataCheckError, run_main
 from mlkit.metrics import direction_agreement
 from mlkit.models import RF_PARAMS, make_model
@@ -65,13 +64,9 @@ def train_validate(feats: dict[str, pd.DataFrame], ds: Dataset, feature_set: str
         return run.info.run_id
 
 
-def load_features(ds: Dataset, root: str) -> dict[str, pd.DataFrame]:
-    return {key: io.read_parquet(feat_path(root, ds, key)) for key in ds.sources}
-
-
 def main() -> None:
     ds = load_dataset(os.environ["DATASET_FILE"])
-    feats = load_features(ds, os.environ["DATA_ROOT"])
+    feats = features_by_source(ds, os.environ["DATA_ROOT"])
     run_id = train_validate(feats, ds, os.environ["FEATURE_SET"], os.environ["PARENT_RUN_ID"])
     print(f"{os.environ['FEATURE_SET']}: run {run_id}")
 

@@ -1,17 +1,18 @@
-"""Step 2: every feature in FEATURES plus the label, for each source.
+"""Every feature in FEATURES plus the label, computed from the raw snapshot.
 
 Adding a feature = one function + one entry in FEATURES + a set in FEATURE_SETS.
 Every feature is relative (percent, ratio or 0-100), never in price points:
 NQ and XYZ100 trade at different levels, and trees cannot extrapolate.
-"""
-import os
 
+Features are never stored: each step that needs them computes them from the raw snapshot
+(about a second). A stored copy would go stale as soon as a feature changes, and Supabase
+Storage has no lifecycle rules to clean such copies up.
+"""
 import numpy as np
 import pandas as pd
 
-from dataset import feat_path, load_dataset, raw_path
+from dataset import Dataset, raw_path
 from mlkit import io
-from mlkit.errors import run_main
 from mlkit.labels import forward_direction, forward_return
 
 
@@ -71,14 +72,9 @@ def build_features(raw: pd.DataFrame, horizon: int, weekdays_only: bool) -> pd.D
     return df[["t", "c", *FEATURES, "label", "fwd_ret"]].reset_index(drop=True)
 
 
-def main() -> None:
-    ds = load_dataset(os.environ["DATASET_FILE"])
-    root = os.environ["DATA_ROOT"]
-    for key in ds.sources:
-        feats = build_features(io.read_parquet(raw_path(root, ds, key)), ds.horizon, ds.weekdays_only)
-        io.write_parquet(feats, feat_path(root, ds, key))
-        print(f"{key}: {len(feats)} rows, label balance {feats['label'].mean():.3f}")
-
-
-if __name__ == "__main__":
-    run_main(main)
+def features_by_source(ds: Dataset, root: str) -> dict[str, pd.DataFrame]:
+    """Read each source's raw snapshot and compute its features."""
+    return {
+        key: build_features(io.read_parquet(raw_path(root, ds, key)), ds.horizon, ds.weekdays_only)
+        for key in ds.sources
+    }

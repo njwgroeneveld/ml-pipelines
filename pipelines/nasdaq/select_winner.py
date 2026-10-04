@@ -11,9 +11,9 @@ import pandas as pd
 from mlflow import MlflowClient
 
 from dataset import Dataset, load_dataset
-from features import FEATURE_SETS
+from features import FEATURE_SETS, features_by_source
 from mlkit.errors import run_main
-from train import evaluate, load_features, paired_period
+from train import evaluate, paired_period
 
 
 class AlreadyTested(Exception):
@@ -54,7 +54,7 @@ def evaluate_winner(feats: dict[str, pd.DataFrame], ds: Dataset, parent_run_id: 
 
 def main() -> None:
     ds = load_dataset(os.environ["DATASET_FILE"])
-    feats = load_features(ds, os.environ["DATA_ROOT"])
+    feats = features_by_source(ds, os.environ["DATA_ROOT"])
     print(f"winner: run {evaluate_winner(feats, ds, os.environ['PARENT_RUN_ID'])}")
 
 

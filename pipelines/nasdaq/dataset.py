@@ -52,6 +52,3 @@ def load_dataset(path: str | Path) -> Dataset:
 def raw_path(root: str, ds: Dataset, key: str) -> str:
     return f"{root}/{ds.name}/raw_{key}.parquet"
 
-
-def feat_path(root: str, ds: Dataset, key: str) -> str:
-    return f"{root}/{ds.name}/feat_{key}.parquet"

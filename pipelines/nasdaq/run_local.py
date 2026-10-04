@@ -14,14 +14,13 @@ import mlflow
 import pandas as pd
 from mlflow import MlflowClient
 
-from dataset import feat_path, load_dataset, raw_path
-from features import FEATURE_SETS, build_features
+from dataset import load_dataset
+from features import FEATURE_SETS, features_by_source
 from fetch import fetch_source
-from mlkit import io
 from register import register_winner
 from select_winner import evaluate_winner
 from start import start_experiment
-from train import load_features, train_validate
+from train import train_validate
 
 HERE = Path(__file__).resolve().parent
 
@@ -54,9 +53,7 @@ def main() -> None:
     now = pd.Timestamp.now(tz="UTC")
     for key in ds.sources:
         fetch_source(ds, key, root, now)
-        feats = build_features(io.read_parquet(raw_path(root, ds, key)), ds.horizon, ds.weekdays_only)
-        io.write_parquet(feats, feat_path(root, ds, key))
-    feats = load_features(ds, root)
+    feats = features_by_source(ds, root)
 
     parent = start_experiment(ds)
     for feature_set in args.feature_sets:
