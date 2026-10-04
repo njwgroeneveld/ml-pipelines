@@ -40,6 +40,8 @@ jobs:
           file: pipelines/nasdaq/Dockerfile
           platforms: linux/arm64
           push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max       # reuse the pip layer across tags; QEMU builds are slow
           build-args: |
             IMAGE_TAG=${{ steps.version.outputs.version }}
             GIT_SHA=${{ github.sha }}
